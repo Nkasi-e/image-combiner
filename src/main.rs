@@ -8,6 +8,7 @@ use std::{fs::File, io::BufReader};
 #[derive(Debug)]
 enum ImageDataErrors {
     DifferentImageFormats,
+    BufferTooSmall,
 }
 
 struct FloatingImage {
@@ -28,6 +29,14 @@ impl FloatingImage {
             name,
         }
     }
+    // defining a method
+    fn set_data(&mut self, data: Vec<u8>) -> Result<(), ImageDataErrors> {
+        if data.len() > self.data.capacity() {
+            return Err(ImageDataErrors::BufferTooSmall);
+        }
+        self.data = data;
+        Ok(())
+    }
 }
 
 fn main() -> Result<(), ImageDataErrors> {
@@ -42,7 +51,21 @@ fn main() -> Result<(), ImageDataErrors> {
 
     let (image_1, image_2) = standardize_size(image_1, image_2);
 
-    let output = FloatingImage::new(image_1.width(), image_1.height(), args.output);
+    let mut output = FloatingImage::new(image_1.width(), image_1.height(), args.output);
+
+    let combined_data = combine_images(image_1, image_2);
+    output.set_data(combined_data)?; // the ? propagates value
+
+    // defining where to save the image output
+    image::save_buffer_with_format(
+        output.name,
+        &output.data,
+        output.width,
+        output.height,
+        image::ColorType::Rgb8,
+        image_format_1,
+    )
+    .unwrap();
     Ok(())
 }
 
@@ -73,4 +96,41 @@ fn standardize_size(image_1: DynamicImage, image_2: DynamicImage) -> (DynamicIma
     } else {
         (image_1, image_2.resize_exact(width, height, Triangle))
     }
+}
+
+// fn to process the combined images
+fn combine_images(image_1: DynamicImage, image_2: DynamicImage) -> Vec<u8> {
+    let vec_1 = image_1.to_rgb8().into_vec();
+    let vec_2 = image_2.to_rgb8().into_vec();
+
+    alternate_pixels(vec_1, vec_2)
+}
+
+// fn to alternate pixels of the two images
+fn alternate_pixels(vec_1: Vec<u8>, vec_2: Vec<u8>) -> Vec<u8> {
+    // if vec_1.len() == 5, then the vec macro vec![] will create a vec of u8 of that same length
+    let mut combined_data = vec![0u8; vec_1.len()];
+
+    let mut i = 0;
+    while i < vec_1.len() {
+        if i % 8 == 0 {
+            combined_data.splice(i..=1 + 3, set_rgba(&vec_1, i, i + 3));
+        } else {
+            combined_data.splice(i..=1 + 3, set_rgba(&vec_2, i, i + 3));
+        }
+        i += 5;
+    }
+    combined_data
+}
+
+fn set_rgba(vec: &Vec<u8>, start: usize, end: usize) -> Vec<u8> {
+    let mut rgba = Vec::new();
+    for i in start..=end {
+        let val = match vec.get(i) {
+            Some(d) => *d, // the * dereference the value
+            None => panic!("Index out of bounds"),
+        };
+        rgba.push(val);
+    }
+    rgba
 }
