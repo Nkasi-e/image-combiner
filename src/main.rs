@@ -108,6 +108,9 @@ fn combine_images(image_1: DynamicImage, image_2: DynamicImage) -> Vec<u8> {
 
 // fn to alternate pixels of the two images
 fn alternate_pixels(vec_1: Vec<u8>, vec_2: Vec<u8>) -> Vec<u8> {
+    if vec_1.len() % 8 != 0 || vec_2.len() % 8 != 0 {
+        panic!("Input vectors must have a length that is a multiple of 8");
+    }
     // if vec_1.len() == 5, then the vec macro vec![] will create a vec of u8 of that same length
     let mut combined_data = vec![0u8; vec_1.len()];
 
@@ -118,7 +121,7 @@ fn alternate_pixels(vec_1: Vec<u8>, vec_2: Vec<u8>) -> Vec<u8> {
         } else {
             combined_data.splice(i..=1 + 3, set_rgba(&vec_2, i, i + 3));
         }
-        i += 5;
+        i += 4;
     }
     combined_data
 }
